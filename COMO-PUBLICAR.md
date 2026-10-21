@@ -39,11 +39,11 @@ Tiempo total: unos 30 minutos, una sola vez.
 2. **+ → New repository** → nombre `sira-propiedades` → **Public** → **Create repository**.
 3. Toca **uploading an existing file** y arrastra todo el contenido de esta carpeta (index.html, admin.html, app.js, admin.js, datos.js, config.js y las carpetas assets y supabase). Luego **Commit changes**.
 4. **Settings → Pages** → Source: **Deploy from a branch** → Branch: **main**, carpeta **/(root)** → **Save**.
-5. En 1 o 2 minutos el sitio queda en `https://TU-USUARIO.github.io/sira-propiedades/`.
+5. En 1 o 2 minutos el sitio queda en `https://sirapropiedades.github.io/`.
 
 ## Paso 4: Que los correos de Supabase lleven al panel
 En Supabase: **Authentication → URL Configuration**:
-- **Site URL:** `https://TU-USUARIO.github.io/sira-propiedades/admin.html`
+- **Site URL:** `https://sirapropiedades.github.io/admin.html`
 - **Redirect URLs → Add URL:** la misma dirección.
 
 Sin esto, los correos de "confirma tu cuenta" y "recuperar clave" abren una página que no existe.
@@ -53,7 +53,7 @@ Sin esto, los correos de "confirma tu cuenta" y "recuperar clave" abren una pág
 - Para que funcione "Olvidé mi clave" con todo el equipo, configura un correo propio gratis en **Authentication → Emails → SMTP Settings** (por ejemplo, tu Gmail con una "contraseña de aplicación": servidor `smtp.gmail.com`, puerto `587`).
 
 ## Paso 5: Crear tu cuenta de DUEÑO (hazlo de inmediato)
-1. Abre `https://TU-USUARIO.github.io/sira-propiedades/admin.html`.
+1. Abre `https://sirapropiedades.github.io/admin.html`.
 2. **Crear cuenta** → tu nombre, correo y clave.
 3. Confirma el correo que te llega (revisa spam) y entra.
 

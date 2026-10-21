@@ -3,7 +3,7 @@
    Si cambias algo aquí, cambia en ambos lados.
    ===================================================================== */
 const SIRA = (() => {
-  const WA = '56930882610';
+  const WA = '56949858828';
   const TIPOS = ['Casa', 'Departamento', 'Parcela', 'Terreno', 'Local comercial', 'Oficina'];
   const OPERACIONES = ['Venta', 'Arriendo'];
 
