@@ -564,7 +564,7 @@ function abrirEditor(p, nueva){
   pintarCampos(); pintarFotos(); prevPrecio(); linkMapa();
   $$('#f-edit .err').forEach(x => x.classList.remove('err'));
   $$('#f-edit input, #f-edit select, #f-edit textarea, #f-edit button').forEach(x => x.disabled = SOLO_VER);
-  $('#dz').hidden = SOLO_VER; $('#e-save').hidden = SOLO_VER; $('#e-prev').hidden = SOLO_VER; $('#e-cancel').textContent = SOLO_VER ? 'Volver' : 'Cancelar';
+  $('#dz').hidden = SOLO_VER; $('#e-save').hidden = SOLO_VER; $('#e-vista').hidden = SOLO_VER; $('#e-cancel').textContent = SOLO_VER ? 'Volver' : 'Cancelar';
   $('#e-save').textContent = P().publicar ? 'Guardar y publicar' : 'Guardar';
   $('#e-msg').textContent = '';
   $('#e-seg').hidden = nueva || !p.id || !p.operacion;
@@ -832,7 +832,7 @@ function ajustarPrevia(){
   $$('#pv-modal [data-pw]').forEach(b => b.classList.toggle('on', b.dataset.pw === PV.ancho));
   $('#pv-frame').className = PV.ancho;
 }
-$('#e-prev').addEventListener('click', () => {
+$('#e-vista').addEventListener('click', () => {
   PV.vista = 'tarjeta'; ajustarPrevia();
   $('#pv-modal').hidden = false; document.body.style.overflow = 'hidden';
   const av = $('#pv-aviso'); av.hidden = false; av.className = 'pvw'; av.textContent = 'Cargando la vista previa…';
