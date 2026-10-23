@@ -20,7 +20,7 @@ const BASE = {
       { id:'v-cap-4', t:'Firmar la orden de venta', d:'Entre vendedor y corredor.', tr:1 },
       { id:'v-cap-5', t:'Sacar fotos y poner el letrero', d:'Acordar términos y el momento de pago de la comisión.' } ] },
     { id:'leg', titulo:'Revisión estado legal', corto:'Papeles', color:'#3f7d4e', pasos:[
-      { id:'v-leg-1', t:'Pedir los documentos al propietario', d:'Certificado de dominio vigente, de hipotecas y gravámenes, avalúo fiscal y los demás que correspondan.' },
+      { id:'v-leg-1', t:'Pedir los documentos al propietario', d:'Certificado de dominio vigente, de hipotecas y gravámenes, avalúo fiscal y los demás que correspondan. Se marcan uno a uno en la carpeta de documentos de más abajo.' },
       { id:'v-leg-2', t:'Revisar los documentos y aconsejar', d:'Tanto de la fachada como de aspectos legales, si hace falta.' },
       { id:'v-leg-3', t:'Hacer la ficha de propiedad', tr:1 },
       { id:'v-leg-4', t:'Publicar en distintos portales', d:'Sitio web, redes sociales y portales inmobiliarios.' } ] },
@@ -45,7 +45,7 @@ const BASE = {
       { id:'a-cap-1', t:'Buscar propiedad y propietario interesado en arrendar' },
       { id:'a-cap-2', t:'Evaluar la propiedad', d:'Estado real, valor de mercado, condiciones, ubicación y tipología.' },
       { id:'a-cap-3', t:'Presentar propuesta de corretaje', d:'Oferta de servicio, plazos, honorarios y condiciones del arriendo.' },
-      { id:'a-cap-4', t:'Pedir la documentación', d:'Certificado de dominio vigente.' } ] },
+      { id:'a-cap-4', t:'Pedir la documentación', d:'Certificado de dominio vigente (y el mandato de arriendo). Se marcan en la carpeta de documentos de la etapa 2.' } ] },
     { id:'man', titulo:'Contrato firmado y detalles', corto:'Mandato', color:'#3f7d4e', pasos:[
       { id:'a-man-1', t:'Revisar viabilidad, acordar con el arrendador y redactar el mandato de arriendo' },
       { id:'a-man-2', t:'Firmar el mandato y la orden de arriendo', tr:1 } ] },
@@ -347,9 +347,11 @@ function pintar(p){
         <div class="eh"><span class="num">${i + 1}</span><h3>${esc(e.titulo)}</h3><span class="c">${e.he}/${e.tot}</span></div>
         <div class="eb"><i style="width:${e.tot ? Math.round(e.he * 100 / e.tot) : 0}%"></i></div>
         <ul class="pasos">${e.pasos.map(s => pasoHTML(s, r.op, ro)).join('')}</ul>
+        ${(i === 1 || (r.etapas.length === 1 && i === 0)) && X.docs ? X.docs.carpetaHTML(p) : ''}
         ${ro ? '' : `<form class="addp" data-add="${esc(e.id)}"><input type="text" maxlength="300" placeholder="Agregar paso propio…" aria-label="Agregar un paso solo para esta propiedad"><button class="btn sec sm" type="submit">+</button></form>`}
       </section>`).join('')}</div>
     ${privHTML(p)}
+    ${X.docs ? X.docs.archivosHTML(p) : ''}
     ${acciones}`;
 }
 

@@ -101,11 +101,19 @@ Si alguien que no conoces crea una cuenta mientras el registro está abierto, qu
 - **La volví a publicar:** cuando republicas una propiedad en redes o portales, toca ese botón (en la lista, junto a "Dormida", o en su seguimiento) y deja de estar dormida.
 - **Publicación:** en el seguimiento de cada propiedad están "Copiar texto para publicar" y "QR para el letrero". La lista de portales donde publican se edita en la pestaña Procesos.
 - **WhatsApp del sitio:** el botón verde llega con un mensaje que dice desde qué publicación o búsqueda te escriben.
-- **Arriendos:** al entrar a la pestaña verás lo que hay que atender esta semana: atrasos, cobros que vencen, contratos que terminan y reajustes.
+- **Administración (antes "Arriendos"):** al entrar a la pestaña verás lo que hay que atender esta semana: atrasos, cobros que vencen, contratos que terminan y reajustes. Cada arriendo muestra también los documentos y archivos de su propiedad.
+- **Carpeta de documentos (etapa 2 del seguimiento):** un casillero por documento (venta: 9, arriendo: 2). Al marcarlo "recibido" se anota la fecha de emisión (editable) y, según los **días hábiles de vigencia**, aparece verde (vigente), amarillo (por vencer) o rojo (vencido: sale del conteo y hay que volver a sacarlo). El dueño y el gerente fijan la vigencia general con **Configurar vigencias**; también se puede cambiar solo para una propiedad. Hasta que la definas, dice "Define la vigencia".
+- **Archivos:** en el seguimiento, en Administración y en el expediente se suben contratos, acta de ingreso y otros (PDF, fotos o Word de hasta 10 MB). Quedan en un almacenamiento **privado** y se abren con enlaces que duran 2 minutos.
+- **Expediente:** las propiedades vendidas o arrendadas tienen un botón **Expediente** con el contrato firmado, el acta de ingreso, los documentos del cierre y la fecha de cierre. Nada se borra al cerrar.
+- **Papelera:** "Mover a la papelera" (menú ···) oculta la propiedad del sitio y del listado. Se restaura desde la pestaña **Papelera** y, si no, se borra sola para siempre a los 30 días (con sus fotos y archivos). La limpieza ocurre cuando alguien con permiso abre el panel.
+- **Vista previa:** en el editor, el botón **Vista previa** muestra la tarjeta y el detalle (en celular o computador) tal como saldrían en el sitio, sin guardar ni publicar nada.
 
 ## Cuando haya una actualización del sitio
 1. Sube los archivos nuevos a GitHub (**Add file → Upload files**; los que tienen el mismo nombre se reemplazan).
 2. Si la actualización trae cambios en la base de datos (hazlo justo después del paso 1, el sitio puede fallar unos minutos entre uno y otro): Supabase → **SQL Editor** → New query → pega TODO `supabase/configurar-base.sql` → **Run**. Se puede ejecutar las veces que quieras: no borra datos.
+
+### Actualización de octubre 2026 (papelera, expediente, documentos y archivos)
+Además de subir los archivos, ejecuta **una vez** `supabase/actualizacion-documentos-papelera.sql` (Supabase → SQL Editor → New query → pega todo → Run). Sube también el archivo nuevo `documentos.js`. Si subes los archivos antes de correr el SQL, el panel sigue funcionando y te avisa qué falta.
 
 ## Bueno saber
 - **Límites del plan gratis de Supabase:** 1 GB de fotos (unas 4.000 con la compresión del panel), 500 MB de datos y 5 GB de transferencia al mes. La transferencia es lo primero que se va a llenar si el sitio tiene mucho tráfico: alcanza para miles de visitas al mes. Si algún día se queda corto, es buena señal y se puede ajustar.

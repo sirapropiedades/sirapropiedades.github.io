@@ -17,6 +17,8 @@ const $=s=>document.querySelector(s);
 
 /* ---------- datos reales ---------- */
 let ALL=[], ITEMS=[], UF=SIRA.UF_RESPALDO, ESTADO_CARGA='cargando';
+/* vista previa: el panel (admin.html) abre esta misma página en un marco y le manda los datos del formulario */
+const PREVIA=(()=>{ try{ return window.parent!==window && location.hash==='#vista-previa' && window.parent.location.origin===location.origin; }catch(e){ return false; } })();
 function normalizar(p){
   const fotos=(p.fotos||[]).filter(Boolean);
   return {...p,
@@ -469,6 +471,7 @@ const VIEWS={'#nosotros':'nos','#contacto':'con','#propiedades':'prop'};
 const TITLES={nos:'Quiénes somos | Sira Propiedades',con:'Contacto | Sira Propiedades',prop:'Propiedades | Sira Propiedades'};
 let SAVED=null;
 function route(){
+  if(PREVIA) return;
   const h=location.hash, b=document.body;
   const cur=['nos','con','prop','det'].find(v=>b.classList.contains('v-'+v))||'';
   let v=cur, p=null, cod=null;
@@ -530,9 +533,39 @@ document.querySelectorAll('.fnav a,.flogo2').forEach(a=>a.addEventListener('clic
 }));
 const anio=$('#anio'); if(anio) anio.textContent=new Date().getFullYear();
 
+
+/* ---------- vista previa desde el panel (no lee ni escribe nada en la base de datos) ---------- */
+function pintarPrevia(m){
+  const d=m.datos&&typeof m.datos==='object'?m.datos:{};
+  const limpio={...d};
+  ['titulo','tipo','operacion','comuna','sector','region','descripcion','direccion','moneda'].forEach(k=>{ if(limpio[k]!=null&&typeof limpio[k]!=='string') limpio[k]=String(limpio[k]); });
+  ['caracteristicas','detalles','fotos'].forEach(k=>{ if(!Array.isArray(limpio[k])) limpio[k]=[]; });
+  const q=normalizar({...limpio,codigo:String(m.codigo||'SIRA-????'),estado:String(m.estado||'disponible'),creada:String(m.creada||''),
+    fotos:limpio.fotos.filter(x=>typeof x==='string').map(SIRA.fotoURL).filter(Boolean)});
+  const b=document.body;
+  b.classList.remove('previa-tarjeta','previa-detalle','v-det');
+  if(m.vista==='detalle'){ b.classList.add('previa-detalle','v-det'); renderDet(q); document.title=q._t+' | Sira Propiedades'; scrollTo({top:0,behavior:'auto'}); }
+  else { b.classList.add('previa-tarjeta'); $('#grid').innerHTML=card(q,0); scrollTo({top:0,behavior:'auto'}); }
+  layoutFilters(); onScroll();
+}
+function iniciarPrevia(){
+  ESTADO_CARGA='ok'; ALL=[]; ITEMS=[];
+  document.body.classList.add('previa');
+  /* dentro de la vista previa nada navega ni abre WhatsApp: es solo para mirar */
+  document.addEventListener('click',e=>{ const a=e.target.closest('a'); if(a) e.preventDefault(); },true);
+  addEventListener('message',e=>{
+    if(e.origin!==location.origin||e.source!==window.parent) return;
+    const m=e.data; if(!m||m.tipo!=='sira-previa') return;
+    try{ pintarPrevia(m); }catch(err){ console.error('Vista previa',err); }
+  });
+  window.parent.postMessage({tipo:'sira-previa-lista'},location.origin);
+}
 /* ---------- arranque ---------- */
-route(); renderHome(); syncUI(); renderCat();
-cargar().then(()=>{ renderHome(); syncUI(); renderCat(); if(document.body.classList.contains('v-det')) route(); });
+if(PREVIA){ iniciarPrevia(); }
+else{
+  route(); renderHome(); syncUI(); renderCat();
+  cargar().then(()=>{ renderHome(); syncUI(); renderCat(); if(document.body.classList.contains('v-det')) route(); });
+}
 
 /* ---------- WhatsApp: el mensaje llega escrito según desde dónde escribe la persona ---------- */
 function mensajeWA(){

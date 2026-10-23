@@ -118,7 +118,7 @@ X.GANCHOS.tab.arr = () => pintarTab();
 function marcaTab(){
   const b = $('#tabs button[data-t=arr]'); if (!b) return;
   const n = CTR.filter(c => deudas(c).length).length;
-  b.innerHTML = 'Arriendos' + (n ? `<span class="n" title="Contratos con arriendo atrasado" style="background:var(--bad)">${n}</span>` : '');
+  b.innerHTML = 'Administración' + (n ? `<span class="n" title="Contratos con arriendo atrasado" style="background:var(--bad)">${n}</span>` : '');
 }
 
 /* ---------------- pestaña Arriendos ---------------- */
@@ -205,11 +205,12 @@ function pintarCtr(){
   const encs = eq.length ? eq.map(u => [u.id, (u.nombre || u.email) + (u.id === yo().id ? ' (tú)' : '')]) : [[yo().id, (yo().nombre || yo().email) + ' (tú)']];
   if (base.encargado && !encs.some(x => x[0] === base.encargado)) encs.push([base.encargado, X.nombreDe(base.encargado) || 'Otra persona']);
   const v = $('#v-ctr');
-  v.innerHTML = `<a href="#" data-r="volver" style="color:var(--mu);text-decoration:none" class="noprint">&larr; Volver a Arriendos</a>
+  v.innerHTML = `<a href="#" data-r="volver" style="color:var(--mu);text-decoration:none" class="noprint">&larr; Volver a Administración</a>
     <h1 style="margin-top:10px">${c ? esc(nombre(c)) : 'Nuevo contrato de administración'}</h1>
     <p class="sub">${c ? `${montoTxt(c)} · cobra el día ${esc(D(c).diaPago || 5)} · comisión: ${esc(comisionTxt(c))}` : 'Completa los datos y guarda. Después podrás registrar los pagos de cada mes.'}</p>
     ${c ? `<div class="alertas">${alertasDe(c).map(alertaHTML).join('').replace(/<button class="btn sec sm" type="button" data-r="abrir"[^>]*>Abrir<\/button>/g, '')}</div>` : ''}
     ${c ? pagosHTML(c) + gastosHTML(c) + liqHTML(c) : ''}
+    ${c && X.docs ? X.docs.ctrHTML(c) : ''}
     <form id="f-ctr" novalidate class="noprint">
       <section class="box"><h2>Contrato</h2>
         <div class="g2 r1">${campo('nombre', 'Nombre para reconocerlo', 'text', 'maxlength="90" placeholder="ej: Casa Los Pinos 123"')}
@@ -475,8 +476,10 @@ $('#v-ctr').addEventListener('click', async e => {
     if (!confirm(`¿Eliminar el contrato "${nombre(c)}" con todos sus pagos y gastos? Esto no se puede deshacer.`)) return;
     X.overlay(true, 'Eliminando…');
     try{
+      const rutas = X.docs ? await X.docs.rutasDe('contrato_id', c.id) : [];
       const { data, error } = await sb.from('contratos').delete().eq('id', c.id).select();
       if (error) throw error; if (!data || !data.length) throw new Error('permission denied');
+      if (X.docs) await X.docs.quitarRutas(rutas);
       CTR = CTR.filter(x => x.id !== c.id); PAG = PAG.filter(p => p.contrato_id !== c.id); GAS = GAS.filter(g => g.contrato_id !== c.id);
       SUCIO = false; X.toast('Contrato eliminado.'); X.vista('list'); X.pestana('arr');
     }catch(err){ X.toast(X.errTxt(err), true); }
@@ -501,5 +504,5 @@ $('#v-ctr').addEventListener('submit', async e => {
   }
 });
 
-X.arr = { nuevoDesde: (p, pv) => { X.pestana('arr'); nuevoDesde(p, pv); } };
+X.arr = { nuevoDesde: (p, pv) => { X.pestana('arr'); nuevoDesde(p, pv); }, contratosDe: id => CTR.filter(c => c.propiedad_id === id).length };
 })();

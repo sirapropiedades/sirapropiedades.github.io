@@ -12,11 +12,11 @@ const { esc } = SIRA;
 /* ---------------- permisos por perfil (espejo de las reglas de la base) ---------------- */
 const ROLES = { dueno:'Dueño', gerente:'Gerente', corredor:'Corredor', asistente:'Asistente inmobiliario', lectura:'Solo lectura', pendiente:'Pendiente' };
 const PERM = {
-  dueno:     { crear:1, editarTodo:1, publicar:1, aprobar:1, borrarTodo:1, equipo:'editar', historial:1, uf:1, seguir:1, procesos:1, arriendos:1, registro:1 },
-  gerente:   { crear:1, editarTodo:1, publicar:1, aprobar:1, borrarTodo:0, equipo:'ver',    historial:1, uf:1, seguir:1, procesos:1, arriendos:1, registro:1 },
-  corredor:  { crear:1, editarTodo:0, publicar:1, aprobar:0, borrarTodo:0, equipo:0,        historial:0, uf:0, seguir:1, procesos:0, arriendos:1, registro:0 },
-  asistente: { crear:1, editarTodo:0, publicar:0, aprobar:0, borrarTodo:0, equipo:0,        historial:0, uf:0, seguir:1, procesos:0, arriendos:0, registro:0 },
-  lectura:   { crear:0, editarTodo:0, publicar:0, aprobar:0, borrarTodo:0, equipo:0,        historial:0, uf:0, seguir:0, procesos:0, arriendos:0, registro:0 }
+  dueno:     { crear:1, editarTodo:1, publicar:1, aprobar:1, borrarTodo:1, equipo:'editar', historial:1, uf:1, seguir:1, procesos:1, arriendos:1, registro:1, papelera:1 },
+  gerente:   { crear:1, editarTodo:1, publicar:1, aprobar:1, borrarTodo:0, equipo:'ver',    historial:1, uf:1, seguir:1, procesos:1, arriendos:1, registro:1, papelera:0 },
+  corredor:  { crear:1, editarTodo:0, publicar:1, aprobar:0, borrarTodo:0, equipo:0,        historial:0, uf:0, seguir:1, procesos:0, arriendos:1, registro:0, papelera:1 },
+  asistente: { crear:1, editarTodo:0, publicar:0, aprobar:0, borrarTodo:0, equipo:0,        historial:0, uf:0, seguir:1, procesos:0, arriendos:0, registro:0, papelera:1 },
+  lectura:   { crear:0, editarTodo:0, publicar:0, aprobar:0, borrarTodo:0, equipo:0,        historial:0, uf:0, seguir:0, procesos:0, arriendos:0, registro:0, papelera:0 }
 };
 const TXT_PERM = {
   dueno: 'Tienes acceso completo.',
@@ -38,7 +38,7 @@ const estadosPermitidos = op => (P().publicar ? Object.keys(SIRA.ESTADOS) : BORR
 /* ---------------- interfaz general ---------------- */
 /* las vistas internas (ficha, seguimiento, contrato) dejan una entrada en el historial:
    así el botón "Atrás" del celular vuelve a la lista en vez de salir del panel */
-const SUBVISTAS = ['edit','seg','ctr'];
+const SUBVISTAS = ['edit','seg','ctr','exp'];
 let EN_SUB = false, SALTAR_POP = false;
 function vista(v){
   $$('body > main[id^="v-"]').forEach(m => m.hidden = m.id !== 'v-' + v);
@@ -80,6 +80,7 @@ function errTxt(e){
   if (/Password should be|at least/i.test(m)) return 'La clave debe tener al menos 8 caracteres.';
   if (/rate limit|too many/i.test(m)) return 'Demasiados intentos seguidos. Espera unos minutos.';
   if (/row-level security|permission denied|42501/i.test(m)) return 'Tu perfil no tiene permiso para hacer eso.';
+  if (/(column|relation|table).*(does not exist|not found)|schema cache/i.test(m)) return 'Falta ejecutar la actualización de la base de datos: pega supabase/actualizacion-documentos-papelera.sql en Supabase → SQL Editor y toca Run.';
   if (/Failed to fetch|NetworkError|network/i.test(m)) return 'Sin conexión a internet. Revisa tu señal e inténtalo otra vez.';
   if (/JWT expired/i.test(m)) return 'Tu sesión venció. Sal y vuelve a entrar.';
   if (/REGISTRO_CERRADO|Database error saving new user/i.test(m)) return 'El registro de nuevos integrantes está cerrado. Pídele al dueño o al gerente que lo abra un momento.';
@@ -205,10 +206,10 @@ async function entrar(){
 }
 
 /* ---------------- datos ---------------- */
-let LISTA = [], UF = { valor: SIRA.UF_RESPALDO, fecha: null }, EQUIPO = [];
+let LISTA = [], PAPELERA = [], UF = { valor: SIRA.UF_RESPALDO, fecha: null }, EQUIPO = [];
 const nombreDe = id => { const x = EQUIPO.find(e => e.id === id); return x ? (x.nombre || x.email) : ''; };
-const META = ['id','codigo','estado','creada','creada_por','actualizada','actualizada_por','publicada'];
-function deFila(f){ return { ...(f.datos||{}), id:f.id, codigo:f.codigo, estado:f.estado, creada:f.creada, creada_por:f.creada_por, actualizada:f.actualizada, publicada: !!f.publicada }; }
+const META = ['id','codigo','estado','creada','creada_por','actualizada','actualizada_por','publicada','eliminada','eliminada_por','cerrada'];
+function deFila(f){ return { ...(f.datos||{}), id:f.id, codigo:f.codigo, estado:f.estado, creada:f.creada, creada_por:f.creada_por, actualizada:f.actualizada, publicada: !!f.publicada, eliminada:f.eliminada_en || null, eliminada_por:f.eliminada_por || null, cerrada:f.cerrada_en || null }; }
 function aDatos(p){ const d = { ...p }; META.forEach(k => delete d[k]); return d; }
 
 /* trae todas las filas aunque sean más de 1000 (el límite por consulta de Supabase) */
@@ -230,14 +231,16 @@ async function cargar(silencioso){
       sb.from('config').select('clave,valor'),
       P().equipo ? sb.from('perfiles').select('*').order('creado') : Promise.resolve({ data: [] })
     ]);
-    LISTA = rp.map(deFila);
+    const filas = rp.map(deFila);
+    LISTA = filas.filter(p => !p.eliminada); PAPELERA = filas.filter(p => p.eliminada);
     CONFIG = {}; (rc.data || []).forEach(c => CONFIG[c.clave] = c.valor);
     if (CONFIG.uf) UF = CONFIG.uf;
     EQUIPO = re.data || [];
     for (const h of GANCHOS.cargar) await h();
-    pintarLista();
+    await purgarVencidas();
+    pintarLista(); pintarPapelera();
     const v = $$('body > main[id^="v-"]').find(m => !m.hidden);
-    if (!v || !['v-edit','v-seg','v-ctr'].includes(v.id)) vista('list');
+    if (!v || !['v-edit','v-seg','v-ctr','v-exp'].includes(v.id)) vista('list');
     else GANCHOS.refrescar.forEach(h => h(v.id));
   }catch(err){ toast(errTxt(err), true); vista('list'); }
   finally{ overlay(false); }
@@ -252,6 +255,7 @@ function pestana(t){
   $$('#v-list > section[id^="t-"]').forEach(s => s.hidden = s.id !== 't-' + t);
   if (t === 'equipo') pintarEquipo();
   if (t === 'hist') cargarHistorial();
+  if (t === 'pap') pintarPapelera();
   if (GANCHOS.tab[t]) GANCHOS.tab[t]();
 }
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('button[data-t]'); if (b) pestana(b.dataset.t); });
@@ -291,12 +295,13 @@ function pintarLista(){
         ${S ? S.chip(p) : ''}</div>
       <div class="ac">${est(p)}
         ${S && p.operacion ? `<button class="btn sec sm" type="button" data-a="seguir" data-id="${esc(p.id)}">Seguimiento</button>` : ''}
+        ${SIRA.cerrada(p) && window.PANEL.docs && (['dueno','gerente','asistente'].includes(YO.rol) || (YO.rol === 'corredor' && esMia(p))) ? `<button class="btn sec sm" type="button" data-a="expediente" data-id="${esc(p.id)}">Expediente</button>` : ''}
         ${p.estado==='revision' && P().aprobar ? `<button class="btn ok sm" type="button" data-a="aprobar" data-id="${esc(p.id)}">Aprobar y publicar</button>` : ''}
         <button class="btn ${ed?'':'sec '}sm" type="button" data-a="editar" data-id="${esc(p.id)}">${ed?'Editar':'Ver ficha'}</button>
         ${SIRA.publica(p) || P().crear || puedeBorrar(p) ? `<details class="mas"><summary class="btn sec sm" aria-label="Más opciones" title="Más opciones">&middot;&middot;&middot;</summary><div class="mmenu">
           ${SIRA.publica(p)?`<a href="index.html#propiedad/${encodeURIComponent(p.codigo)}" target="_blank" rel="noopener">Ver en sitio</a>`:''}
           ${P().crear?`<button type="button" data-a="duplicar" data-id="${esc(p.id)}">Duplicar</button>`:''}
-          ${puedeBorrar(p)?`<button type="button" class="dan" data-a="borrar" data-id="${esc(p.id)}">Eliminar</button>`:''}</div></details>` : ''}</div>
+          ${puedeBorrar(p)?`<button type="button" class="dan" data-a="borrar" data-id="${esc(p.id)}">Mover a la papelera</button>`:''}</div></details>` : ''}</div>
     </div>`;
   }).join('') : `<div class="empty">${ps.length ? 'No hay propiedades con ese filtro.' : (P().crear ? 'Aún no hay propiedades. Toca <b>+ Nueva propiedad</b> para publicar la primera.' : 'Aún no hay propiedades.')}</div>`;
 }
@@ -336,6 +341,7 @@ $('#rows').addEventListener('click', async e => {
   const a = b.dataset.a;
   if (a === 'editar') abrirEditor(p);
   else if (a === 'seguir') SEG().abrir(p);
+  else if (a === 'expediente') window.PANEL.docs.abrirExpediente(p);
   else if (a === 'aprobar') cambiarEstado(p, 'disponible');
   else if (a === 'duplicar'){
     const c = JSON.parse(JSON.stringify(p));
@@ -343,17 +349,81 @@ $('#rows').addEventListener('click', async e => {
     abrirEditor(c, true);
   }
   else if (a === 'borrar'){
-    if (!confirm(`¿Eliminar definitivamente ${p.codigo} (${SIRA.titulo(p)})?\n\nSi solo se vendió o arrendó, mejor cambia el estado: queda en el sitio con el sello "Vendido" o "Arrendado".`)) return;
-    overlay(true, 'Eliminando…');
+    const D = window.PANEL.docs, r = D ? D.resumen(p.id) : { archivos:0, docs:0 }, A = window.PANEL.arr, nc = A && A.contratosDe ? A.contratosDe(p.id) : 0;
+    const tiene = [];
+    if (r.archivos) tiene.push(r.archivos === 1 ? '1 archivo guardado' : r.archivos + ' archivos guardados');
+    if (r.docs) tiene.push(r.docs === 1 ? '1 documento recibido' : r.docs + ' documentos recibidos');
+    if (nc) tiene.push(nc === 1 ? 'un arriendo vinculado en Administración' : nc + ' arriendos vinculados en Administración');
+    if (!confirm(`¿Mover ${p.codigo} (${SIRA.titulo(p)}) a la papelera?\n\n` +
+        (tiene.length ? `Esta propiedad tiene ${tiene.join(', ')}. Todo se borra junto con ella cuando pasen los ${DIAS_PAPELERA} días.\n\n` : '') +
+        `Dejará de verse en el sitio y en el listado. Puedes restaurarla desde la pestaña Papelera; si no, se borra sola para siempre en ${DIAS_PAPELERA} días.\n\n` +
+        `Si solo se vendió o arrendó, mejor cambia el estado: queda en el sitio con el sello "Vendido" o "Arrendado".`)) return;
+    overlay(true, 'Moviendo a la papelera…');
     try{
-      const { data, error } = await sb.from('propiedades').delete().eq('id', p.id).select();
+      const { data, error } = await sb.from('propiedades').update({ eliminada_en: new Date().toISOString() }).eq('id', p.id).select();
       if (error) throw error;
       if (!data.length) throw new Error('permission denied');
-      await borrarFotos(p.fotos||[], p.id);
-      toast(`${p.codigo} eliminada.`);
+      toast(`${p.codigo} está en la papelera. Se borra sola en ${DIAS_PAPELERA} días.`, false, { texto: 'Deshacer', fn: () => restaurar(p.id) });
     }catch(err){ toast(errTxt(err), true); }
     finally{ await cargar(true); }
   }
+});
+
+/* ---------------- papelera ---------------- */
+const DIAS_PAPELERA = 30;
+const diasEnPapelera = p => Math.floor((Date.now() - new Date(p.eliminada).getTime()) / 864e5);
+async function eliminarDefinitivo(p){
+  const D = window.PANEL.docs, rutas = D ? await D.rutasDe('propiedad_id', p.id) : [];
+  const { data, error } = await sb.from('propiedades').delete().eq('id', p.id).select();
+  if (error) throw error;
+  if (!data.length) throw new Error('permission denied');
+  await borrarFotos(p.fotos || [], p.id);
+  if (D) await D.quitarRutas(rutas);
+}
+/* a los 30 días se borra sola (lo hace el panel cuando alguien con permiso lo abre) */
+async function purgarVencidas(){
+  for (const p of PAPELERA.filter(x => puedeBorrar(x) && diasEnPapelera(x) >= DIAS_PAPELERA)){
+    try{ await eliminarDefinitivo(p); PAPELERA = PAPELERA.filter(x => x.id !== p.id); }catch(e){}
+  }
+}
+async function restaurar(id){
+  overlay(true, 'Restaurando…');
+  try{
+    const { data, error } = await sb.from('propiedades').update({ eliminada_en: null }).eq('id', id).select();
+    if (error) throw error;
+    if (!data.length) throw new Error('permission denied');
+    toast(`${data[0].codigo} restaurada: vuelve a estar como estaba.`);
+  }catch(err){ toast(errTxt(err), true); }
+  finally{ await cargar(true); }
+}
+function pintarPapelera(){
+  const n = PAPELERA.length, b = $('#tabs button[data-t=pap]');
+  if (b) b.innerHTML = 'Papelera' + (n ? `<span class="n" style="background:var(--mu)" title="Propiedades en la papelera">${n}</span>` : '');
+  const c = $('#pap-rows'); if (!c) return;
+  const D = window.PANEL.docs;
+  c.innerHTML = n ? PAPELERA.slice().sort((a, b) => new Date(b.eliminada) - new Date(a.eliminada)).map(p => {
+    const f = (p.fotos||[])[0], quedan = Math.max(0, DIAS_PAPELERA - diasEnPapelera(p)), r = D ? D.resumen(p.id) : { archivos:0, docs:0 };
+    const quien = p.eliminada_por === YO.id ? 'ti' : nombreDe(p.eliminada_por);
+    const ok = puedeBorrar(p);
+    return `<div class="row oc" data-cod="${esc(p.codigo)}">
+      <div class="th" style="${f?`background-image:url('${esc(SIRA.fotoURL(f))}')`:''}">${f?'':'<svg fill="#c95d2a"><use href="#key"/></svg>'}</div>
+      <div><div class="ti"><span class="pill">${esc(p.operacion||'')}</span>${esc(SIRA.titulo(p))}</div>
+        <div class="me">${esc(p.codigo)} · ${esc(SIRA.precioTxt(p))} · Eliminada el ${esc(fecha(p.eliminada))}${quien ? ' por ' + esc(quien) : ''}</div>
+        <div class="me"><b>${quedan === 0 ? 'Se borra hoy para siempre' : quedan === 1 ? 'Queda 1 día' : 'Quedan ' + quedan + ' días'}</b>${r.archivos || r.docs ? ` · con ${r.archivos} ${r.archivos === 1 ? 'archivo' : 'archivos'} y ${r.docs} ${r.docs === 1 ? 'documento recibido' : 'documentos recibidos'}` : ''}</div></div>
+      <div class="ac">${ok ? `<button class="btn ok sm" type="button" data-pa="restaurar" data-id="${esc(p.id)}">Restaurar</button>
+        <button class="btn dan sm" type="button" data-pa="borrar" data-id="${esc(p.id)}">Eliminar definitivamente</button>` : '<span class="estro">Solo lectura</span>'}</div>
+    </div>`;
+  }).join('') : '<div class="empty">La papelera está vacía.</div>';
+}
+$('#pap-rows').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-pa]'); if (!b) return;
+  const p = PAPELERA.find(x => x.id === b.dataset.id); if (!p) return;
+  if (b.dataset.pa === 'restaurar') return restaurar(p.id);
+  if (!confirm(`¿Eliminar definitivamente ${p.codigo} (${SIRA.titulo(p)})?\n\nSe borran la propiedad, sus fotos, su seguimiento, sus documentos y sus archivos. No se puede deshacer.`)) return;
+  overlay(true, 'Eliminando…');
+  try{ await eliminarDefinitivo(p); toast(`${p.codigo} eliminada para siempre.`); }
+  catch(err){ toast(errTxt(err), true); }
+  finally{ await cargar(true); }
 });
 $('#b-nueva').addEventListener('click', () => {
   const ult = LISTA[0];
@@ -494,7 +564,7 @@ function abrirEditor(p, nueva){
   pintarCampos(); pintarFotos(); prevPrecio(); linkMapa();
   $$('#f-edit .err').forEach(x => x.classList.remove('err'));
   $$('#f-edit input, #f-edit select, #f-edit textarea, #f-edit button').forEach(x => x.disabled = SOLO_VER);
-  $('#dz').hidden = SOLO_VER; $('#e-save').hidden = SOLO_VER; $('#e-cancel').textContent = SOLO_VER ? 'Volver' : 'Cancelar';
+  $('#dz').hidden = SOLO_VER; $('#e-save').hidden = SOLO_VER; $('#e-prev').hidden = SOLO_VER; $('#e-cancel').textContent = SOLO_VER ? 'Volver' : 'Cancelar';
   $('#e-save').textContent = P().publicar ? 'Guardar y publicar' : 'Guardar';
   $('#e-msg').textContent = '';
   $('#e-seg').hidden = nueva || !p.id || !p.operacion;
@@ -736,6 +806,50 @@ async function guardar(){
   }finally{ overlay(false); btn.disabled = false; }
 }
 $('#e-save').addEventListener('click', guardar);
+
+/* ---------------- vista previa (no guarda ni publica nada) ---------------- */
+const PV = { vista:'tarjeta', ancho:'cel' };
+function avisosPrevia(p){
+  const a = [];
+  if (!EDF.length) a.push('No tiene fotos: en el sitio se vería sin imagen.');
+  if (!p.precio) a.push('No tiene precio: dirá "Precio a consultar".');
+  if (!p.descripcion) a.push('Falta la descripción.');
+  if (!p.tipo || !p.operacion || !p.comuna) a.push('Falta el tipo, la operación o la comuna.');
+  if (!SIRA.publica(p)) a.push('Con el estado "' + (SIRA.ESTADOS[p.estado] || p.estado).replace(' (oculta)', '') + '" no se publica en el sitio; aquí lo ves igual como referencia.');
+  return a;
+}
+function enviarPrevia(){
+  const fr = $('#pv-frame'); if (!fr || !fr.contentWindow) return;
+  const p = leerForm(), datos = aDatos(p);
+  Object.keys(datos).forEach(k => { if (k.startsWith('_')) delete datos[k]; });
+  datos.fotos = EDF.map(f => f.path || f.src).filter(Boolean);    /* las nuevas son enlaces locales del navegador */
+  fr.contentWindow.postMessage({ tipo:'sira-previa', vista:PV.vista, codigo:p.codigo || 'SIRA-????', estado:p.estado || 'disponible', creada:new Date().toISOString(), datos }, location.origin);
+  const av = avisosPrevia(p), el = $('#pv-aviso');
+  el.hidden = !av.length; el.innerHTML = av.length ? '<b>Antes de publicar:</b> ' + av.map(esc).join(' ') : '';
+}
+function ajustarPrevia(){
+  $$('#pv-modal [data-pv]').forEach(b => b.classList.toggle('on', b.dataset.pv === PV.vista));
+  $$('#pv-modal [data-pw]').forEach(b => b.classList.toggle('on', b.dataset.pw === PV.ancho));
+  $('#pv-frame').className = PV.ancho;
+}
+$('#e-prev').addEventListener('click', () => {
+  PV.vista = 'tarjeta'; ajustarPrevia();
+  $('#pv-modal').hidden = false; document.body.style.overflow = 'hidden';
+  $('#pv-frame').src = 'index.html#vista-previa';     /* la misma página pública, con los datos del formulario */
+});
+function cerrarPrevia(){ $('#pv-modal').hidden = true; document.body.style.overflow = ''; $('#pv-frame').src = 'about:blank'; }
+$('#pv-cerrar').addEventListener('click', cerrarPrevia);
+addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#pv-modal').hidden) cerrarPrevia(); });
+$('#pv-modal').addEventListener('click', e => {
+  const b = e.target.closest('button[data-pv], button[data-pw]');
+  if (b){ if (b.dataset.pv) PV.vista = b.dataset.pv; if (b.dataset.pw) PV.ancho = b.dataset.pw; ajustarPrevia(); enviarPrevia(); }
+  else if (e.target.id === 'pv-modal') cerrarPrevia();
+});
+addEventListener('message', e => {
+  const fr = $('#pv-frame');
+  if (e.origin !== location.origin || !fr || e.source !== fr.contentWindow) return;
+  if (e.data && e.data.tipo === 'sira-previa-lista') enviarPrevia();
+});
 $('#e-seg').addEventListener('click', () => {
   if (SUCIO && !confirm('Tienes cambios sin guardar en la ficha. ¿Ir al seguimiento igual? (los cambios de la ficha se pierden)')) return;
   SUCIO = false; const p = porId(ED.id); if (p) SEG().abrir(p);
@@ -744,7 +858,22 @@ function salirEditor(e){ if (e) e.preventDefault(); if (SUCIO && !SOLO_VER && !c
 $('#e-cancel').addEventListener('click', salirEditor);
 $('#e-volver').addEventListener('click', salirEditor);
 
-/* ---------------- lo que comparten los módulos (checklist.js, arriendos.js) ---------------- */
+/* el logo vuelve al inicio del panel (si hay cambios sin guardar, cada pantalla pregunta antes) */
+$('#lg-home').addEventListener('click', e => {
+  e.preventDefault();
+  if (!YO) return;
+  const v = $$('body > main[id^="v-"]').find(m => !m.hidden);
+  if (!v || ['v-setup','v-login','v-clave','v-espera'].includes(v.id)) return;
+  if (v.id !== 'v-list'){
+    const b = v.querySelector('[data-a=volver], [data-r=volver], #e-volver');
+    if (b) b.click(); else vista('list');
+    const ahora = $$('body > main[id^="v-"]').find(m => !m.hidden);
+    if (!ahora || ahora.id !== 'v-list') return;     /* la persona eligió quedarse: no se cambia nada */
+  }
+  pestana('prop'); scrollTo(0, 0);
+});
+
+/* ---------------- lo que comparten los módulos (checklist.js, arriendos.js, documentos.js) ---------------- */
 const GANCHOS = { cargar: [], refrescar: [], tab: {}, entrar: [] };
 window.PANEL = {
   sb, $, $$, esc, toast, overlay, errTxt, fecha, vista, pestana, cargar, todo, uuid, rid, pintarLista, porId, nombreDe, ROLES,
