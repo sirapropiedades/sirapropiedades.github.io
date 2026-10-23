@@ -336,11 +336,20 @@ details.mas>summary::-webkit-details-marker{display:none}
 .pvc button{border:0;background:#fff;padding:8px 14px;font:700 13px/1 'DM Sans';cursor:pointer;color:var(--mu)}
 .pvc button.on{background:var(--o);color:#fff}
 .pvw{margin:0;padding:8px 16px;background:#fff6dd;color:#6d5200;font-size:13.5px;border-bottom:1px solid #ecd9a0}
+.pvw.mal{background:#fbe0de;color:#8c1d16;border-bottom-color:#e3b6b2;font-size:14.5px;padding:12px 16px}
 .pvf{flex:1;overflow:auto;display:flex;justify-content:center;padding:14px;min-height:0}
 .pvf iframe{border:1px solid var(--ln);background:#fff;height:100%;min-height:480px;flex:none}
 .pvf iframe.cel{width:390px;max-width:100%}
 .pvf iframe.pc{width:1100px;max-width:none}
 @media print{.pvm{display:none!important}}
+/* ficha de un arriendo administrado: títulos de sección más notables y más aire entre bloques */
+#v-ctr .box{margin-bottom:36px;padding-top:30px}
+#v-ctr .box > h2,#v-ctr .dc-h2 h2{font:700 21px/1.2 'DM Sans';letter-spacing:.01em;text-transform:none;color:var(--d);border-left:7px solid var(--o);padding:2px 0 2px 14px}
+#v-ctr .box > h2{margin:0 0 20px;padding-bottom:2px;border-bottom:0;background:linear-gradient(to right,#faf3ec,transparent);padding-top:10px;padding-bottom:10px}
+#v-ctr .dc-h2{border-bottom:0;background:linear-gradient(to right,#faf3ec,transparent);margin-bottom:20px;padding:10px 10px 10px 0}
+#v-ctr .dc-h2 h2{margin:0}
+#v-ctr .dc-sub{font-size:13px}
+@media print{#v-ctr .box{margin-bottom:18px}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 </head>
@@ -602,11 +611,11 @@ details.mas>summary::-webkit-details-marker{display:none}
 
 <div class="ov" id="ov" hidden><div class="bx"><div class="spin"></div><b id="ov-t">Guardando…</b><p class="hint" id="ov-s"></p></div></div>
 
-<script src="config.js?v=20261022"></script>
-<script src="datos.js?v=20261022"></script>
-<script src="admin.js?v=20261022"></script>
-<script src="checklist.js?v=20261022"></script>
-<script src="arriendos.js?v=20261022"></script>
-<script src="documentos.js?v=20261022"></script>
+<script src="config.js?v=20261023"></script>
+<script src="datos.js?v=20261023"></script>
+<script src="admin.js?v=20261023"></script>
+<script src="checklist.js?v=20261023"></script>
+<script src="arriendos.js?v=20261023"></script>
+<script src="documentos.js?v=20261023"></script>
 </body>
 </html>

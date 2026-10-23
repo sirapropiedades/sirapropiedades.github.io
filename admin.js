@@ -835,9 +835,16 @@ function ajustarPrevia(){
 $('#e-prev').addEventListener('click', () => {
   PV.vista = 'tarjeta'; ajustarPrevia();
   $('#pv-modal').hidden = false; document.body.style.overflow = 'hidden';
-  $('#pv-frame').src = 'index.html#vista-previa';     /* la misma página pública, con los datos del formulario */
+  const av = $('#pv-aviso'); av.hidden = false; av.className = 'pvw'; av.textContent = 'Cargando la vista previa…';
+  /* la misma página pública, con los datos del formulario. El "?previa=" evita que el navegador use una copia vieja guardada */
+  $('#pv-frame').src = 'index.html?previa=' + Date.now() + '#vista-previa';
+  clearTimeout(PV.t);
+  PV.t = setTimeout(() => {
+    av.hidden = false; av.className = 'pvw mal';
+    av.innerHTML = '<b>La vista previa no cargó.</b> Casi seguro faltan en GitHub los archivos <b>index.html</b> y <b>app.js</b> nuevos, o el navegador guarda la versión anterior. Súbelos, cierra esta ventana, refresca con Ctrl+F5 y vuelve a abrirla.';
+  }, 5000);
 });
-function cerrarPrevia(){ $('#pv-modal').hidden = true; document.body.style.overflow = ''; $('#pv-frame').src = 'about:blank'; }
+function cerrarPrevia(){ clearTimeout(PV.t); $('#pv-modal').hidden = true; document.body.style.overflow = ''; $('#pv-frame').src = 'about:blank'; }
 $('#pv-cerrar').addEventListener('click', cerrarPrevia);
 addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#pv-modal').hidden) cerrarPrevia(); });
 $('#pv-modal').addEventListener('click', e => {
@@ -848,7 +855,7 @@ $('#pv-modal').addEventListener('click', e => {
 addEventListener('message', e => {
   const fr = $('#pv-frame');
   if (e.origin !== location.origin || !fr || e.source !== fr.contentWindow) return;
-  if (e.data && e.data.tipo === 'sira-previa-lista') enviarPrevia();
+  if (e.data && e.data.tipo === 'sira-previa-lista'){ clearTimeout(PV.t); $('#pv-aviso').className = 'pvw'; enviarPrevia(); }
 });
 $('#e-seg').addEventListener('click', () => {
   if (SUCIO && !confirm('Tienes cambios sin guardar en la ficha. ¿Ir al seguimiento igual? (los cambios de la ficha se pierden)')) return;

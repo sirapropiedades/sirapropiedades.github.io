@@ -69,6 +69,7 @@ const mb = n => n >= 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' MB
 let EST = {}, ARCH = [], OK = true;      /* OK=false: la base todavía no tiene las tablas nuevas */
 const CTRS = {};                         /* contratos de Administración que mostraron su carpeta */
 let EDIT_VIG = null, CONF = false, EXP = null, SUBIENDO = null;
+const ABIERTOS = {};     /* qué bloques están desplegados (por defecto vienen plegados, menos en el expediente) */
 const puedeAlgo = () => !!yo() && ['dueno','gerente','corredor','asistente'].includes(yo().rol);
 const puedeConf = () => !!yo() && ['dueno','gerente'].includes(yo().rol);
 const verProp = (p, via) => {
@@ -175,7 +176,7 @@ function carpetaInner(pid, op, o){
   o = o || {};
   const defs = DOCS[op]; if (!defs) return '';
   const c = conteo(pid, op), ro = !!o.lectura;
-  const sc = 'p:' + pid;
+  const llave = 'car|' + pid + '|' + (o.ctx || 'seg'), ab = llave in ABIERTOS ? ABIERTOS[llave] : !!o.abierto;
   const pct = c.tot ? Math.round(c.ok * 100 / c.tot) : 0;
   const filas = defs.map(def => {
     const f = filaEst(pid, op, def.k), s = estadoDoc(op, def, f);
@@ -207,20 +208,23 @@ function carpetaInner(pid, op, o){
   const panelConf = CONF && !ro && puedeConf() ? `<div class="dc-conf"><p>Vigencia general de cada documento, en <b>días hábiles</b> (lunes a viernes, sin descontar feriados, así que puede quedar 1 o 2 días corto). Déjalo vacío si aún no lo defines y escribe <b>0</b> si no vence. Se aplica a todas las propiedades.</p>
     <div class="dc-cg">${todos.map(d => `<label><span>${esc(d.t)}</span><input type="number" min="0" max="3650" step="1" data-vk="${esc(d.k)}" value="${vigGeneral()[d.k] == null ? '' : esc(vigGeneral()[d.k])}"></label>`).join('')}</div>
     <div class="dc-ac"><button type="button" class="btn sm" data-d="conf-ok">Guardar vigencias</button></div></div>` : '';
+  const tag = o.solo ? 'h2' : 'h3';
   return `<section class="${o.solo ? 'box' : 'dc-box'}">
-    <div class="dc-h"><h3>Carpeta de documentos${op === 'venta' ? ' de la venta' : ' del arriendo'}</h3>
-      <span class="dc-c ${c.tot && c.ok === c.tot ? 'full' : ''}">${c.ok} de ${c.tot} ${c.tot === 1 ? 'recibido' : 'recibidos'}</span></div>
+    <div class="dc-h${o.solo ? ' dc-h2' : ''}"><${tag}>Carpeta de documentos${op === 'venta' ? ' de la venta' : ' del arriendo'}</${tag}>
+      <span class="dc-c ${c.tot && c.ok === c.tot ? 'full' : ''}">${c.ok} de ${c.tot} ${c.tot === 1 ? 'recibido' : 'recibidos'}</span>
+      <button type="button" class="dc-tg" data-d="plegar" data-key="${esc(llave)}" aria-expanded="${ab}">${ab ? 'Ocultar documentos' : 'Ver documentos'}</button></div>
     <div class="dc-bar"><i style="width:${pct}%"></i></div>
     ${c.venc ? `<p class="dc-warn">${c.venc} ${c.venc === 1 ? 'documento vencido: hay que volver a sacarlo' : 'documentos vencidos: hay que volver a sacarlos'} (no cuentan en el avance).</p>` : ''}
-    ${c.tope ? `<p class="dc-m">Cotización: los que puede sacar Sira cuestan hasta <b>${pesos(c.tope)}</b> en total.</p>` : ''}
+    ${ab ? `${c.tope ? `<p class="dc-m">Cotización: los que puede sacar Sira cuestan hasta <b>${pesos(c.tope)}</b> en total.</p>` : ''}
     ${conf ? `<div class="dc-ac" style="margin:0 0 8px">${conf}</div>` : ''}${panelConf}
-    <ul class="dc-ds">${filas}</ul></section>`;
+    <ul class="dc-ds">${filas}</ul>` : ''}</section>`;
 }
 
 /* repertorio de archivos */
 function archivosInner(scope, o){
   o = o || {};
   const all = archivosDe(scope, o.cid).filter(a => a.categoria !== 'legal'), ro = !!o.lectura;
+  const llave = 'arc|' + scope + '|' + (o.ctx || 'seg'), ab = llave in ABIERTOS ? ABIERTOS[llave] : !!o.abierto;
   const cats = CATS.filter(c => !c.op || c.op === o.op || all.some(a => a.categoria === c.k));
   const bloques = cats.map(c => {
     const l = all.filter(a => a.categoria === c.k);
@@ -230,15 +234,16 @@ function archivosInner(scope, o){
         <button type="button" class="dc-l" data-d="adj" data-cat="${c.k}">+ Subir archivo</button></div>`}</div>`;
   }).join('');
   return `<section class="box">
-    <h2>${esc(o.titulo || 'Archivos')} <span class="dc-sub">· privado, solo el equipo con permiso</span></h2>
-    <p class="hint" style="margin:0 0 12px">PDF, fotos (se achican solas) o Word, de hasta 10 MB cada uno. Se abren con un enlace temporal.</p>
-    ${bloques}</section>`;
+    <div class="dc-h2"><h2>${esc(o.titulo || 'Archivos')} <span class="dc-sub">· privado, solo el equipo con permiso</span></h2>
+      <span class="dc-c">${all.length} ${all.length === 1 ? 'archivo' : 'archivos'}</span>
+      <button type="button" class="dc-tg" data-d="plegar" data-key="${esc(llave)}" aria-expanded="${ab}">${ab ? 'Ocultar archivos' : 'Ver archivos'}</button></div>
+    ${ab ? `<p class="hint" style="margin:0 0 12px">PDF, fotos (se achican solas) o Word, de hasta 10 MB cada uno. Se abren con un enlace temporal.</p>${bloques}` : ''}</section>`;
 }
 
 function ctrInner(c){
   const scope = c.propiedad_id ? 'p:' + c.propiedad_id : 'c:' + c.id;
-  return (c.propiedad_id ? carpetaInner(c.propiedad_id, 'arriendo', { solo:true }) : '') +
-         archivosInner(scope, { op:'arriendo', cid:c.id, titulo:'Archivos del arriendo' });
+  return (c.propiedad_id ? carpetaInner(c.propiedad_id, 'arriendo', { solo:true, ctx:'ctr' }) : '') +
+         archivosInner(scope, { op:'arriendo', cid:c.id, titulo:'Archivos del arriendo', ctx:'ctr' });
 }
 
 /* expediente de una propiedad cerrada */
@@ -249,8 +254,8 @@ function expInner(p){
   return `<section class="box"><h2>Datos del cierre</h2>
       <dl class="dc-dl">${dato('Código', p.codigo)}${dato('Operación', p.operacion || '—')}${dato('Estado', (SIRA.ESTADOS[p.estado] || p.estado).replace(' (oculta)', ''))}
       ${dato(p.operacion === 'Venta' ? 'Precio de venta' : 'Precio de arriendo', SIRA.precioTxt(p))}${dato('Fecha de cierre', cierre)}${dato('Ubicación', [p.sector, p.comuna].filter(Boolean).join(', ') || '—')}</dl></section>` +
-    archivosInner(sc, { op, titulo:'Contrato firmado, acta de ingreso y otros archivos' }) +
-    (op ? carpetaInner(p.id, op, { solo:true }) : '');
+    archivosInner(sc, { op, titulo:'Contrato firmado, acta de ingreso y otros archivos', ctx:'exp', abierto:true }) +
+    (op ? carpetaInner(p.id, op, { solo:true, ctx:'exp', abierto:true }) : '');
 }
 
 /* ---------------- piezas públicas para los otros módulos ---------------- */
@@ -404,6 +409,7 @@ document.addEventListener('click', async e => {
   const w = b.closest('.dc-w'), scope = w.dataset.dscope, pid = scope[0] === 'p' ? scope.slice(2) : null;
   const d = b.dataset.d, li = b.closest('.dc-doc');
   const op = li && li.dataset.dop, k = li && li.dataset.dk;
+  if (d === 'plegar'){ ABIERTOS[b.dataset.key] = b.getAttribute('aria-expanded') !== 'true'; return repintar(); }
   if (d === 'abrir') return abrirArchivo(b.dataset.id);
   if (d === 'del-arch') return quitarArchivo(b.dataset.id);
   if (d === 'adj'){
@@ -471,6 +477,14 @@ css.textContent = `
 .dc-h h3{font:700 16px/1.2 'DM Sans';margin:0}
 .dc-c{font:700 13px/1 'DM Sans';padding:6px 10px;border-radius:12px;background:#f1ece7;color:var(--tx)}
 .dc-c.full{background:#e3f1e4;color:var(--ok)}
+.dc-h2{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--ln);padding-bottom:12px;margin-bottom:14px}
+.dc-h2 h2{margin:0;padding:0;border:0;flex:1 1 auto}
+.dc-h2 .dc-c{flex:none}
+.dc-tg{flex:none;border:1.5px solid var(--o);background:#fff;color:var(--o2);border-radius:18px;padding:8px 14px;font:700 13px/1 'DM Sans';cursor:pointer;white-space:nowrap}
+.dc-tg::after{content:' ▾'}
+.dc-tg[aria-expanded=true]{background:var(--o);color:#fff}
+.dc-tg[aria-expanded=true]::after{content:' ▴'}
+.dc-tg:hover{background:var(--oh);color:#fff}
 .dc-bar{height:6px;background:#eee7e0;margin:10px 0 12px;overflow:hidden}
 .dc-bar i{display:block;height:100%;background:var(--ok)}
 .dc-warn{font-size:14px;color:var(--bad);font-weight:600;margin:0 0 8px}
